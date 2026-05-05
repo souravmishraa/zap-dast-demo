@@ -31,6 +31,8 @@ jobs:
           mkdir -p zap-reports
           # Fix Permission Denied: Allow the ZAP container user to write reports here
           chmod 777 zap-reports
+          # Also allow ZAP to write the temporary zap.yaml file to the root of the workspace
+          chmod 777 $PWD
 
           # Fix Network: Use --network host and point to localhost
           docker run --rm \
