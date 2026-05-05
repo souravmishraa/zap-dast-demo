@@ -25,19 +25,18 @@ jobs:
           nohup node app.js &
           sleep 15
 
-      # 🔥 FIXED ZAP RUN (NO ACTION PLUGIN)
-      - name: Run ZAP Baseline Scan (Docker safe mode)
+      # 🔥 FIXED STABLE ZAP RUN
+      - name: Run ZAP Scan (Stable Mode)
         run: |
           mkdir -p zap-reports
 
           docker run --rm \
-            -v ${{ github.workspace }}:/zap/wrk/:rw \
+            -v $PWD:/zap/wrk/:rw \
             ghcr.io/zaproxy/zaproxy:stable \
             zap-baseline.py \
             -t http://host.docker.internal:3000 \
-            -J /zap/wrk/zap-reports/report.json \
-            -w /zap/wrk/zap-reports/report.md \
             -r /zap/wrk/zap-reports/report.html \
+            -J /zap/wrk/zap-reports/report.json \
             -I
 
       - name: Upload Report
