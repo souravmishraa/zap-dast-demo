@@ -9,7 +9,8 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -24,17 +25,19 @@ jobs:
           nohup node app.js &
           sleep 15
 
-      # 🔥 FIX: safer ZAP run (no permission issues)
-      - name: ZAP Baseline Scan
+      # 🔥 FIXED ZAP RUN (NO ACTION PLUGIN)
+      - name: Run ZAP Baseline Scan (Docker safe mode)
         run: |
           mkdir -p zap-reports
+
           docker run --rm \
-            -v $(pwd):/zap/wrk/:rw \
+            -v ${{ github.workspace }}:/zap/wrk/:rw \
             ghcr.io/zaproxy/zaproxy:stable \
-            zap-baseline.py -t http://localhost:3000 \
-            -J zap-reports/report.json \
-            -w zap-reports/report.md \
-            -r zap-reports/report.html \
+            zap-baseline.py \
+            -t http://host.docker.internal:3000 \
+            -J /zap/wrk/zap-reports/report.json \
+            -w /zap/wrk/zap-reports/report.md \
+            -r /zap/wrk/zap-reports/report.html \
             -I
 
       - name: Upload Report
