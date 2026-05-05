@@ -1,46 +1,17 @@
-name: OWASP ZAP DAST Scan
-
-on:
-  push:
-    branches: ["main"]
-
-jobs:
-  zap_scan:
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 18
-
-      - name: Install dependencies
-        run: npm install
-
-      - name: Start App
-        run: |
-          nohup node app.js &
-          sleep 15
-
       # 🔥 FIXED STABLE ZAP RUN
       - name: Run ZAP Scan (Stable Mode)
         run: |
           mkdir -p zap-reports
+          # Fix Permission Denied: Allow the ZAP container user to write reports here
+          chmod 777 zap-reports
 
+          # Fix Network: Use --network host and point to localhost
           docker run --rm \
+            --network host \
             -v $PWD:/zap/wrk/:rw \
             ghcr.io/zaproxy/zaproxy:stable \
             zap-baseline.py \
-            -t http://host.docker.internal:3000 \
+            -t http://localhost:3000 \
             -r /zap/wrk/zap-reports/report.html \
             -J /zap/wrk/zap-reports/report.json \
             -I
-
-      - name: Upload Report
-        uses: actions/upload-artifact@v4
-        with:
-          name: zap-report
-          path: zap-reports
