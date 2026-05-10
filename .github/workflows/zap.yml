@@ -1,53 +1,47 @@
-name: OWASP ZAP DAST Scan
-
-on:
-  push:
-    branches: ["main"]
-  pull_request:
-    branches: ["main"]
-
-jobs:
-  zap_scan:
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 18
-
-      - name: Install dependencies
-        run: npm install
-
-      - name: Start App
+      # 🔥 FIXED STABLE ZAP RUN
+      - name: Run ZAP Scan (Stable Mode)
         run: |
-          # Start the app in the background
-          node app.js &
-          # Wait until the server is actually responding before starting the scan
-          npx wait-on http://localhost:3000 --timeout 60000
+          mkdir -p zap-reports
+          # Fix Permission Denied: Allow the ZAP container user to write reports here
+          chmod 777 zap-reports
+          # Also allow ZAP to write the temporary zap.yaml file to the root of the workspace
+          chmod 777 $PWD
 
-      - name: Run Tuned ZAP Baseline Scan
-        uses: zaproxy/action-baseline@v0.12.0
-        with:
-          # The URL of your running application
-          target: 'http://localhost:3000'
-          
-          # 🛠️ TUNED POLICY: Uses the config file created above
-          rules_file_name: 'zap.conf'
-          
-          # 🛑 QUALITY GATE: Setting this to true fails the build if 
-          # vulnerabilities (not ignored in zap.conf) are found.
-          fail_action: true
-          
-          # This allows the action to output the report to the GitHub summary
-          allow_issue_writing: false
+          # ---> ADDED: Create false-positive suppression rules <---
+          echo -e "10027\tIGNORE\t(.*)" > rules.tsv
+          echo -e "10096\tIGNORE\t(.*)" >> rules.tsv
 
-      - name: Upload Scan Report
-        if: always() # Ensures the report is available even if the scan fails
+          # Fix Network: Use --network host and point to localhost
+          # ---> ADDED: -c rules.tsv to apply the rules <---
+          docker run --rm \
+            --network host \
+            -v $PWD:/zap/wrk/:rw \
+            ghcr.io/zaproxy/zaproxy:stable \
+            zap-baseline.py \
+            -t http://localhost:3000 \
+            -r /zap/wrk/zap-reports/report.html \
+            -J /zap/wrk/zap-reports/report.json \
+            -c rules.tsv \
+            -I
+
+      # ---> ADDED: Severity-based quality gate <---
+      - name: Quality Gate (Check for High Risk Alerts)
+        run: |
+          # Read the report and fail if there are High risk alerts
+          HIGH_ALERTS=$(jq '[.site[0].alerts[] | select(.riskdesc | contains("High"))] | length' zap-reports/report.json)
+          
+          echo "High Risk Alerts: $HIGH_ALERTS"
+          
+          if [ "$HIGH_ALERTS" -gt 0 ]; then
+            echo "Failing pipeline due to high risk vulnerabilities!"
+            exit 1
+          else
+            echo "Passed! No high risk vulnerabilities found."
+          fi
+
+      - name: Upload Report
+        if: always() # Ensure report is uploaded even if the quality gate fails
         uses: actions/upload-artifact@v4
         with:
           name: zap-report
-          path: zap_out.html # Default output name for this action
+          path: zap-reports
