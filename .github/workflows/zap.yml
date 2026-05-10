@@ -48,9 +48,9 @@ jobs:
             ghcr.io/zaproxy/zaproxy:stable \
             zap-baseline.py \
             -t http://localhost:3000 \
-            -r /zap/wrk/zap-reports/report.html \
-            -J /zap/wrk/zap-reports/report.json \
-            -c /zap/wrk/zap-rules/rules.tsv \
+            -r zap-reports/report.html \
+            -J zap-reports/report.json \
+            -c zap-rules/rules.tsv \
             -m 5
 
       # Fail pipeline if High Risk alerts exist
