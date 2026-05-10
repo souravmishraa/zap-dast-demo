@@ -25,16 +25,21 @@ jobs:
           nohup node app.js &
           sleep 15
 
-      # 🔥 FIXED STABLE ZAP RUN
-      - name: Run ZAP Scan (Stable Mode)
+      # Create ZAP config file
+      - name: Create Ignore Rules
+        run: |
+          mkdir -p zap-rules
+
+          echo "10027 IGNORE" > zap-rules/rules.tsv
+          echo "10096 IGNORE" >> zap-rules/rules.tsv
+
+      # Run ZAP Scan
+      - name: Run ZAP Baseline Scan
         run: |
           mkdir -p zap-reports
-          # Fix Permission Denied: Allow the ZAP container user to write reports here
-          chmod 777 zap-reports
-          # Also allow ZAP to write the temporary zap.yaml file to the root of the workspace
-          chmod 777 $PWD
+          chmod -R 777 zap-reports
+          chmod -R 777 zap-rules
 
-          # Fix Network: Use --network host and point to localhost
           docker run --rm \
             --network host \
             -v $PWD:/zap/wrk/:rw \
@@ -43,7 +48,20 @@ jobs:
             -t http://localhost:3000 \
             -r /zap/wrk/zap-reports/report.html \
             -J /zap/wrk/zap-reports/report.json \
-            -I
+            -c /zap/wrk/zap-rules/rules.tsv \
+            -m 5
+
+      # Fail pipeline on High Alerts
+      - name: Check High Risk Alerts
+        run: |
+          HIGH=$(cat zap-reports/report.json | jq '.site[0].alerts | map(select(.riskdesc | contains("High"))) | length')
+
+          echo "High Risk Alerts: $HIGH"
+
+          if [ "$HIGH" -gt 0 ]; then
+            echo "High Risk Vulnerabilities Found!"
+            exit 1
+          fi
 
       - name: Upload Report
         uses: actions/upload-artifact@v4
