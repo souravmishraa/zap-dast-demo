@@ -20,25 +20,27 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      - name: Start App
+      - name: Start Express App
         run: |
           nohup node app.js &
           sleep 15
 
-      # Create ZAP config file
+      # Create false-positive suppression rules
       - name: Create Ignore Rules
         run: |
           mkdir -p zap-rules
 
-          echo "10027 IGNORE" > zap-rules/rules.tsv
-          echo "10096 IGNORE" >> zap-rules/rules.tsv
+          printf "10027\tIGNORE\t(.*)\n" > zap-rules/rules.tsv
+          printf "10096\tIGNORE\t(.*)\n" >> zap-rules/rules.tsv
 
-      # Run ZAP Scan
+      # Run OWASP ZAP Baseline Scan
       - name: Run ZAP Baseline Scan
         run: |
           mkdir -p zap-reports
+
           chmod -R 777 zap-reports
           chmod -R 777 zap-rules
+          chmod -R 777 $PWD
 
           docker run --rm \
             --network host \
@@ -51,19 +53,25 @@ jobs:
             -c /zap/wrk/zap-rules/rules.tsv \
             -m 5
 
-      # Fail pipeline on High Alerts
+      # Fail pipeline if High Risk alerts exist
       - name: Check High Risk Alerts
         run: |
-          HIGH=$(cat zap-reports/report.json | jq '.site[0].alerts | map(select(.riskdesc | contains("High"))) | length')
+          sudo apt-get update
+          sudo apt-get install -y jq
+
+          HIGH=$(jq '[.site[0].alerts[] | select(.riskdesc | contains("High"))] | length' zap-reports/report.json)
 
           echo "High Risk Alerts: $HIGH"
 
           if [ "$HIGH" -gt 0 ]; then
             echo "High Risk Vulnerabilities Found!"
             exit 1
+          else
+            echo "No High Risk Vulnerabilities Found."
           fi
 
-      - name: Upload Report
+      # Upload reports
+      - name: Upload ZAP Report
         uses: actions/upload-artifact@v4
         with:
           name: zap-report
