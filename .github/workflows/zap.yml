@@ -1,3 +1,30 @@
+name: OWASP ZAP DAST Scan
+
+on:
+  push:
+    branches: ["main"]
+
+jobs:
+  zap_scan:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Start App
+        run: |
+          nohup node app.js &
+          sleep 15
+
       # 🔥 FIXED STABLE ZAP RUN
       - name: Run ZAP Scan (Stable Mode)
         run: |
@@ -7,12 +34,11 @@
           # Also allow ZAP to write the temporary zap.yaml file to the root of the workspace
           chmod 777 $PWD
 
-          # ---> ADDED: Create false-positive suppression rules <---
+          # Create false-positive suppression rules
           echo -e "10027\tIGNORE\t(.*)" > rules.tsv
           echo -e "10096\tIGNORE\t(.*)" >> rules.tsv
 
           # Fix Network: Use --network host and point to localhost
-          # ---> ADDED: -c rules.tsv to apply the rules <---
           docker run --rm \
             --network host \
             -v $PWD:/zap/wrk/:rw \
@@ -24,7 +50,6 @@
             -c rules.tsv \
             -I
 
-      # ---> ADDED: Severity-based quality gate <---
       - name: Quality Gate (Check for High Risk Alerts)
         run: |
           # Read the report and fail if there are High risk alerts
