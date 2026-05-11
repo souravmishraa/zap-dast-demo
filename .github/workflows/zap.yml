@@ -25,7 +25,7 @@ jobs:
           nohup node app.js &
           sleep 15
 
-      # 🔥 FIXED STABLE ZAP RUN
+      #  STABLE ZAP RUN
       - name: Run ZAP Scan (Stable Mode)
         run: |
           mkdir -p zap-reports
@@ -65,7 +65,7 @@ jobs:
           fi
 
       - name: Upload Report
-        if: always() # Ensure report is uploaded even if the quality gate fails
+        if: always() 
         uses: actions/upload-artifact@v4
         with:
           name: zap-report
