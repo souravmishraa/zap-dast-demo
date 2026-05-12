@@ -1,8 +1,5 @@
 name: OWASP ZAP DAST Scan
 
-# on:
-#   push:
-#     branches: ["main"]
 on:
   push:
 
@@ -13,20 +10,6 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-
-      # OLD EXPRESS APP START (COMMENTED)
-      # - name: Setup Node
-      #   uses: actions/setup-node@v4
-      #   with:
-      #     node-version: 18
-
-      # - name: Install dependencies
-      #   run: npm install
-
-      # - name: Start App
-      #   run: |
-      #     nohup node app.js &
-      #     sleep 15
 
       # START OWASP JUICE SHOP
       - name: Start OWASP Juice Shop
@@ -39,11 +22,10 @@ jobs:
         run: |
           mkdir -p zap-reports
 
-          # Permissions
           chmod 777 zap-reports
           chmod 777 $PWD
 
-          # Create false-positive suppression rules
+          # False-positive suppression rules
           echo -e "10027\tIGNORE\t(.*)" > rules.tsv
           echo -e "10096\tIGNORE\t(.*)" >> rules.tsv
 
@@ -69,19 +51,13 @@ jobs:
 
           echo "High Risk Alerts: $HIGH_ALERTS"
 
-          # if [ "$HIGH_ALERTS" -gt 0 ]; then
-          #   echo "Failing pipeline due to high risk vulnerabilities!"
-          #   exit 1
-          # else
-          #   echo "Passed! No high risk vulnerabilities found."
-          # fi
+          if [ "$HIGH_ALERTS" -gt 0 ]; then
+            echo "High risk vulnerabilities detected!"
+            echo "Quality gate warning generated."
+          else
+            echo "Passed! No high risk vulnerabilities found."
+          fi
 
-if [ "$HIGH_ALERTS" -gt 0 ]; then
-  echo "High risk vulnerabilities detected!"
-  echo "Quality gate warning generated."
-else
-  echo "Passed! No high risk vulnerabilities found."
-fi
       # UPLOAD REPORT
       - name: Upload Report
         if: always()
